@@ -1,7 +1,6 @@
 from urllib.parse import urljoin
 
 from pymongo import MongoClient
-import string
 import requests
 from bs4 import BeautifulSoup
 
@@ -44,11 +43,9 @@ class WebScraper():
             if self.target_page(url, soup):
                 facultyName = self.extractFacultyName(soup)
                 targets_found += 1
-            self.storePage(url, facultyName, html)
+            self.storePage(url, facultyName, soup)
             if targets_found == num_targets:
                 frontier.clear()
-                for i in self.faculty_pages:
-                    print(i["url"])
                 return
             else:
                 links = self.extractLinks(url, soup)
@@ -79,17 +76,18 @@ class WebScraper():
         return None
 
     # Function for storing page
-    def storePage(self, url, facultyName, html):
+    def storePage(self, url, facultyName, soup):
         if facultyName is None:
             return
         else:
+            content = self.extractContent(soup)
             self.faculty_pages.append({
                 "url": url,
                 "facultyName": facultyName,
-                "html": html
+                "content": content
             })
             
-    # Function for extracting links from HTML (NEEDS WORK)
+    # Function for extracting links from HTML
     def extractLinks(self, url, html):
         links = []
         BIOLOGY_PREFIX = "https://www.cpp.edu/sci/biological-sciences/"
@@ -115,3 +113,23 @@ class WebScraper():
                 links.append(absolute_url)
         return links
         
+
+    # Function for extracting important content from each staff page, all conjoined into
+    # "content" inside of faculty_pages        
+    def extractContent(self, soup):
+        content = []
+        
+        faculty_section = soup.find("div", class_="fac-staff")
+        
+        accolades_section = soup.find(
+            "aside",
+            attrs={"aria-label": "faculty accolades"}
+        )
+        
+        if faculty_section is not None:
+            content.append(faculty_section.get_text(" ", strip=True))
+            
+        if accolades_section is not None:
+            content.append(accolades_section.get_text(" ", strip=True))
+        
+        return " ".join(content)
